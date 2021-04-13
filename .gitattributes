@@ -10,5 +10,6 @@ data/train_graphs.bin filter=lfs diff=lfs merge=lfs -text
 data/train_graphs_explicit_H.bin filter=lfs diff=lfs merge=lfs -text
 data/test_graphs_explicit_H.bin filter=lfs diff=lfs merge=lfs -text
 test_dict.pk filter=lfs diff=lfs merge=lfs -text
+'*.pk' filter=lfs diff=lfs merge=lfs -text
 *.bin filter=lfs diff=lfs merge=lfs -text
 *.pk filter=lfs diff=lfs merge=lfs -text
