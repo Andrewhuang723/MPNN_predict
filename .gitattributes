@@ -1,2 +1,10 @@
+'*.bin' filter=lfs diff=lfs merge=lfs -text
+'test_graphs.bin' filter=lfs diff=lfs merge=lfs -text
+'test_graphs_explicit.bin' filter=lfs diff=lfs merge=lfs -text
+'train_graphs_explicit.bin' filter=lfs diff=lfs merge=lfs -text
+'train_graphs.bin' filter=lfs diff=lfs merge=lfs -text
+'test_regression.pkl' filter=lfs diff=lfs merge=lfs -text
+'train_regression.pkl' filter=lfs diff=lfs merge=lfs -text
+test_graphs.bin filter=lfs diff=lfs merge=lfs -text
 *.bin filter=lfs diff=lfs merge=lfs -text
 *.pk filter=lfs diff=lfs merge=lfs -text
