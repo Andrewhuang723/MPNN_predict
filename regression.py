@@ -104,3 +104,4 @@ dic_1 = net_1.state_dict()
 dic_1["loss"] = epoch_losses
 dic_1["val_loss"] = val_epoch_losses
 torch.save(dic_1, "./Model/MPNN_regression_dipole_explicit_H.pkl")
+

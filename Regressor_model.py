@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -5,6 +6,7 @@ from torch import optim
 import dgl
 from dgl.nn.pytorch import GraphConv, NNConv
 from torch.utils.data import Dataset, DataLoader
+import time
 
 device = torch.device("cuda")
 
@@ -101,7 +103,6 @@ class Mol2NumNet_regressor(nn.Module):
                                  nn.Linear(edge_hidden_dim, node_hidden_dim * node_hidden_dim))
         self.conv_2 = NNConv(in_feats=node_hidden_dim, out_feats=node_hidden_dim, edge_func=edge_net, aggregator_type="sum")
         self.gru = nn.GRU(node_hidden_dim, node_hidden_dim, num_layers=1, )
-        nn.GRU()
         self.set2set = Set2Set(input_dim=node_hidden_dim, n_iters=num_step_set2set, n_layers=num_layer_set2set)
         self.lin2 = nn.Linear(node_hidden_dim, node_hidden_dim)
         self.lin3 = nn.Linear(2 * node_hidden_dim, 2 * node_hidden_dim)
@@ -121,3 +122,71 @@ class Mol2NumNet_regressor(nn.Module):
         out = F.relu(self.lin3(out))
         predict = self.predict(out)
         return h, predict
+
+def train_model(model, train_loader, val_loader, epochs, optimizer, loss_function, early_stopping):
+    epoch_losses = []
+    val_epoch_losses = []
+    dur = []
+    for epoch in range(epochs):
+        epoch_loss = 0
+        val_epoch_loss = 0
+        if epoch >= 1:
+            t0 = time.time()
+        for bg, properties in train_loader:
+            properties = torch.stack(properties).to(device, dtype=torch.float)
+            bg = bg.to(device)
+            hidden, prediction = model(bg, bg.ndata["h"], bg.edata["h"])
+            loss = 0
+            for i in range(len(properties)):
+                loss += loss_function(prediction[i, :], properties[i, :])
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            epoch_loss += (loss/len(properties)).detach().item()
+        epoch_loss /= len(train_loader)
+
+        with torch.no_grad():
+            for bg, properties in val_loader:
+                properties = torch.stack(properties).to(device, dtype=torch.float)
+                bg = bg.to(device)
+                val_hidden, val_prediction = model(bg, bg.ndata["h"], bg.edata["h"])
+                val_loss = 0
+                for i in range(len(properties)):
+                    val_loss += loss_function(val_prediction[i, :], properties[i, :])
+                val_epoch_loss += (val_loss/len(properties)).detach().item()
+            val_epoch_loss /= len(val_loader)
+
+        if epoch >= 1:
+            dur.append(time.time() - t0)
+        print('Epoch {} | loss {:.4f} | Time(s) {:.4f} | val loss {:.4f}'.format(epoch, epoch_loss, np.mean(dur), val_epoch_loss))
+        epoch_losses.append(epoch_loss)
+        val_epoch_losses.append(val_epoch_loss)
+        early_stopping(val_loss=val_epoch_loss, model=model)
+
+        if early_stopping.early_stop:
+            print("Early stopping")
+            break
+
+        model_dict = model.state_dict()
+        model_dict["loss"] = epoch_losses
+        model_dict["val_loss"] = val_epoch_losses
+    return model, model_dict
+
+def predict_property(model, test_loader, loss_function):
+    test_loss = 0
+    model.eval()
+    for j, (bg, properties) in zip(range(len(test_loader)), test_loader):
+        properties = torch.stack(properties).to(device, dtype=torch.float)
+        bg = bg.to(device)
+        hidden, prediction = model(bg, bg.ndata["h"], bg.edata["h"])
+
+        if j == 0:
+            y_pred = prediction.detach().cpu().numpy()
+        else:
+            y_pred = np.concatenate([y_pred, prediction.detach().cpu().numpy()], axis=0)
+        loss = 0
+        for i in range(len(properties)):
+            loss += loss_function(prediction[i, :], properties[i, :])
+        test_loss += (loss/len(properties)).detach().item()
+    test_loss /= len(test_loader)
+    return y_pred, test_loss
