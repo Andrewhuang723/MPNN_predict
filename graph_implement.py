@@ -110,7 +110,7 @@ def mol2graph(smiles, explicit_H=False, block=False):
     return g
 
 # Converting all SMILES into graphs
-if __name__ == 'main':
+if __name__ == '__main__':
     if not os.path.exists(save_file):
         G = []
         for i in range(len(smiles)):
